@@ -1,0 +1,13 @@
+# Artefactos locales
+.DS_Store
+tmp/
+
+# Credenciales y exports de herramientas
+.env
+.env.*
+*.secret
+automation/*export*.json
+automation/*raw*.json
+
+# Archivos de trabajo del deck
+deck/assets/~$*
