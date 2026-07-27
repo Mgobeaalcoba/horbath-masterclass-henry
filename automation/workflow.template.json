@@ -1,0 +1,1392 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {},
+        "options": {}
+      },
+      "id": "28542432-5154-4ba3-b82e-0420c93fc62b",
+      "name": "Detectar Nuevos Emails",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        240,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "request_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "received_at",
+              "value": "={{ $json.date }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "requester_name",
+              "value": "={{ $json.from }}",
+              "type": "string"
+            },
+            {
+              "id": "4",
+              "name": "requester_email",
+              "value": "={{ $json.from }}",
+              "type": "string"
+            },
+            {
+              "id": "5",
+              "name": "subject",
+              "value": "={{ $json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "6",
+              "name": "body",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "7",
+              "name": "source",
+              "value": "gmail",
+              "type": "string"
+            },
+            {
+              "id": "8",
+              "name": "status",
+              "value": "received",
+              "type": "string"
+            },
+            {
+              "id": "9",
+              "name": "original_message_link",
+              "value": "={{ \"https://mail.google.com/mail/u/0/#inbox/\" + $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "757a12d4-3a3c-4816-bc10-32441af2193b",
+      "name": "Normalizar Datos",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        464,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ \"Analiza la siguiente solicitud y transforma los datos en formato estructurado.\\n\\nAsunto: \" + $json.subject + \"\\nCuerpo: \" + $json.body + \"\\nRemitente: \" + $json.requester_email }}",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "Analizá la solicitud y transformala en datos estructurados. Clasificá el pedido en una sola categoría y extraé únicamente información presente en el email. No inventes nombres, fechas, proyectos ni responsables. Si falta información, indicá los datos faltantes. Priorizá como Crítica solo ante bloqueo operativo, riesgo de seguridad o vencimiento inminente. Generá un resumen y una respuesta profesional en español. Nunca ejecutes acciones sensibles. Toda solicitud relacionada con accesos, facturación, pagos, datos personales o clientes requiere aprobación humana."
+        }
+      },
+      "id": "ca9a4c79-d6b5-4b59-a82e-e97f8a1e09ec",
+      "name": "Analizar Solicitud con IA",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        720,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "b61e3b76-a7d3-4f2e-b3d1-38044a7cd1f7",
+      "name": "OpenAI GPT-5",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        688,
+        1344
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"additionalProperties\": false,\n  \"properties\": {\n    \"category\": {\n      \"type\": \"string\",\n      \"enum\": [\n        \"People\",\n        \"Finanzas\",\n        \"Compras\",\n        \"Accesos\",\n        \"Soporte\",\n        \"Proyectos\",\n        \"Administración\",\n        \"Otro\"\n      ]\n    },\n    \"priority\": {\n      \"type\": \"string\",\n      \"enum\": [\n        \"Baja\",\n        \"Media\",\n        \"Alta\",\n        \"Crítica\"\n      ]\n    },\n    \"requester_name\": {\n      \"type\": [\"string\", \"null\"]\n    },\n    \"requester_email\": {\n      \"type\": [\"string\", \"null\"],\n      \"format\": \"email\"\n    },\n    \"client_or_project\": {\n      \"type\": [\"string\", \"null\"]\n    },\n    \"target_person\": {\n      \"type\": [\"string\", \"null\"]\n    },\n    \"summary\": {\n      \"type\": \"string\"\n    },\n    \"requested_action\": {\n      \"type\": \"string\"\n    },\n    \"due_date\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"Fecha mencionada explícitamente en el email. Usar formato YYYY-MM-DD solo si puede determinarse con certeza.\"\n    },\n    \"missing_information\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"suggested_owner\": {\n      \"type\": [\"string\", \"null\"],\n      \"description\": \"Responsable únicamente si surge del email o de reglas externas configuradas.\"\n    },\n    \"draft_reply\": {\n      \"type\": \"string\"\n    },\n    \"requires_human_approval\": {\n      \"type\": \"boolean\"\n    },\n    \"confidence\": {\n      \"type\": \"number\",\n      \"minimum\": 0,\n      \"maximum\": 1\n    }\n  },\n  \"required\": [\n    \"category\",\n    \"priority\",\n    \"requester_name\",\n    \"requester_email\",\n    \"client_or_project\",\n    \"target_person\",\n    \"summary\",\n    \"requested_action\",\n    \"due_date\",\n    \"missing_information\",\n    \"suggested_owner\",\n    \"draft_reply\",\n    \"requires_human_approval\",\n    \"confidence\"\n  ]\n}",
+        "autoFix": true
+      },
+      "id": "925b9463-51e3-436a-9a54-326f76eb0f90",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        944,
+        1344
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const aiOutput = $input.item.json.output;\nconst normalizedData = $('Normalizar Datos').item.json;\n\nconst validCategories = ['People', 'Finanzas', 'Compras', 'Accesos', 'Soporte', 'Proyectos', 'Administración', 'Otro'];\nconst validPriorities = ['Baja', 'Media', 'Alta', 'Crítica'];\n\nconst isValid = \n  aiOutput.confidence >= 0.75 &&\n  validCategories.includes(aiOutput.category) &&\n  validPriorities.includes(aiOutput.priority) &&\n  aiOutput.requester_email &&\n  aiOutput.missing_information.length === 0;\n\nreturn {\n  ...normalizedData,\n  ...aiOutput,\n  validation_passed: isValid,\n  validation_reason: !isValid ? \n    (aiOutput.confidence < 0.75 ? 'Confianza baja' : \n     aiOutput.missing_information.length > 0 ? 'Información faltante' : \n     'Datos inválidos') : \n    'OK'\n};"
+      },
+      "id": "b5f01d17-3f31-41af-b875-bcd15e5ca36e",
+      "name": "Validar Confianza y Datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.validation_passed }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              },
+              "rightValue": "",
+              "id": "ffda4e1f-841a-4a03-9835-b24131791907"
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "5190f4c7-04f6-484e-b402-5a22a3a1e1a9",
+      "name": "Validación Pasó?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1536,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_GOOGLE_SHEET_ID",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1032900920,
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "request_id": "={{ $json.request_id }}",
+            "received_at": "={{ $json.received_at }}",
+            "requester_name": "={{ $json.requester_name }}",
+            "requester_email": "={{ $json.requester_email }}",
+            "subject": "={{ $json.subject }}",
+            "body": "={{ $json.body }}",
+            "source": "={{ $json.source }}",
+            "status": "={{ $json.status }}",
+            "category": "={{ $json.category }}",
+            "priority": "={{ $json.priority }}",
+            "client_or_project": "={{ $json.client_or_project }}",
+            "target_person": "={{ $json.target_person }}",
+            "summary": "={{ $json.summary }}",
+            "requested_action": "={{ $json.requested_action }}",
+            "missing_information": "={{ $json.missing_information }}",
+            "due_date": "={{ $json.due_date }}",
+            "suggested_owner": "={{ $json.suggested_owner }}",
+            "draft_reply": "={{ $json.draft_reply }}",
+            "requires_human_approval": "={{ $json.requires_human_approval }}",
+            "confidence": "={{ $json.confidence }}",
+            "validation_passed": "={{ $json.validation_passed }}",
+            "validation_reason": "={{ $json.validation_reason }}",
+            "original_message_link": "={{ $json.original_message_link }}",
+            "last_updated_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [
+            "request_id"
+          ],
+          "schema": [
+            {
+              "id": "request_id",
+              "displayName": "request_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "received_at",
+              "displayName": "received_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requester_name",
+              "displayName": "requester_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requester_email",
+              "displayName": "requester_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "body",
+              "displayName": "body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "priority",
+              "displayName": "priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_or_project",
+              "displayName": "client_or_project",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_person",
+              "displayName": "target_person",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requested_action",
+              "displayName": "requested_action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "due_date",
+              "displayName": "due_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "missing_information",
+              "displayName": "missing_information",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "suggested_owner",
+              "displayName": "suggested_owner",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "draft_reply",
+              "displayName": "draft_reply",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requires_human_approval",
+              "displayName": "requires_human_approval",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "confidence",
+              "displayName": "confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "validation_passed",
+              "displayName": "validation_passed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "validation_reason",
+              "displayName": "validation_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "original_message_link",
+              "displayName": "original_message_link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_updated_at",
+              "displayName": "last_updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "da42acc0-2019-45b3-880b-fbb989343388",
+      "name": "Registrar Solicitud Válida",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1760,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Registrar Solicitud Válida').item.json.category }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "People",
+                    "id": "5cd161a5-b4f1-492a-bc74-de17c4837317"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Registrar Solicitud Válida').item.json.category }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "Finanzas",
+                    "id": "4bb4ebed-5e17-4310-b8af-ae104b8805b4"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Registrar Solicitud Válida').item.json.category }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "Compras",
+                    "id": "537c5b77-8108-4d77-965c-b06c5d366987"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Registrar Solicitud Válida').item.json.category }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "Accesos",
+                    "id": "07da4ed4-81db-49d1-a342-7a801c7b3337"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Registrar Solicitud Válida').item.json.category }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "Soporte",
+                    "id": "3a98bbe7-b1a7-4366-90d1-340bcef8885e"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Registrar Solicitud Válida').item.json.category }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "Proyectos",
+                    "id": "0960c17e-f839-4a9f-bc5c-55ec5dccde76"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Registrar Solicitud Válida').item.json.category }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "Administración",
+                    "id": "ee10aaf6-34f3-4f5d-871f-a042d8b0917e"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Otro"
+        }
+      },
+      "id": "f5d8f4ae-1199-4d13-89ce-a781f19ad132",
+      "name": "Asignar por Categoría",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1984,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AJG4SGU5C",
+          "mode": "list"
+        },
+        "messageType": "block",
+        "blocksUi": "=[\n  {\n    \"type\": \"header\",\n    \"text\": {\n      \"type\": \"plain_text\",\n      \"text\": \"🆕 Nueva Solicitud - {{ $json.category || 'Sin categoría' }}\",\n      \"emoji\": true\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"fields\": [\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*ID:*\\n{{ $json.request_id }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Prioridad:*\\n{{ $json.priority }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Solicitante:*\\n{{ $json.requester_name }}\\n<mailto:{{ $json.requester_email }}|{{ $json.requester_email }}>\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Proyecto/Cliente:*\\n{{ $json.client_or_project || 'No informado' }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Fecha objetivo:*\\n{{ $json.due_date || 'No informada' }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Requiere aprobación:*\\n{{ $json.requires_human_approval ? 'Sí ⚠️' : 'No' }}\"\n      }\n    ]\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Resumen:*\\n{{ $json.summary }}\"\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Acción solicitada:*\\n{{ $json.requested_action || 'No especificada' }}\"\n    }\n  },\n  {\n    \"type\": \"divider\"\n  },\n  {\n    \"type\": \"actions\",\n    \"elements\": [\n      {\n        \"type\": \"button\",\n        \"text\": {\n          \"type\": \"plain_text\",\n          \"text\": \"📋 Ver email original\",\n          \"emoji\": true\n        },\n        \"url\": \"{{ $json.original_message_link }}\",\n        \"action_id\": \"view_original_email\"\n      }\n    ]\n  }\n]",
+        "text": "={{\n  \"🆕 Nueva Solicitud - \" +\n  ($json.category || \"Sin categoría\") +\n  \" | \" +\n  ($json.priority || \"Sin prioridad\") +\n  \"\\nID: \" +\n  $json.request_id +\n  \"\\nSolicitante: \" +\n  $json.requester_name +\n  \" (\" +\n  $json.requester_email +\n  \")\" +\n  \"\\nProyecto/Cliente: \" +\n  ($json.client_or_project || \"No informado\") +\n  \"\\nResumen: \" +\n  $json.summary +\n  \"\\nFecha objetivo: \" +\n  ($json.due_date || \"No informada\") +\n  \"\\nRequiere aprobación: \" +\n  ($json.requires_human_approval ? \"Sí ⚠️\" : \"No\") +\n  \"\\nEmail original: \" +\n  ($json.original_message_link || \"No disponible\")\n}}",
+        "otherOptions": {}
+      },
+      "id": "cc610eed-7d9e-4afd-a06e-a0768b8aa83f",
+      "name": "Notificar People",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        2208,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "status",
+              "value": "requires_information",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "last_updated_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "5949d9a9-87a0-498b-9033-4c9b868915d0",
+      "name": "Marcar Requiere Información",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1760,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.requester_email }}",
+        "subject": "=Re: {{ $json.subject }}",
+        "message": "={{\n  \"<div style='font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;color:#17202a;line-height:1.6;'>\" +\n    \"<div style='background:#ff5a36;padding:24px 28px;border-radius:12px 12px 0 0;color:#ffffff;'>\" +\n      \"<h2 style='margin:0;font-size:22px;'>Solicitud recibida</h2>\" +\n      \"<p style='margin:6px 0 0;font-size:14px;'>Horbath Technologies</p>\" +\n    \"</div>\" +\n\n    \"<div style='background:#f7f8fa;padding:28px;border:1px solid #e2e5e9;border-top:0;border-radius:0 0 12px 12px;'>\" +\n      \"<p style='margin-top:0;'>Hola <strong>\" +\n        ($json.requester_name || \"equipo\") +\n      \"</strong>,</p>\" +\n\n      \"<p>Hemos recibido tu solicitud, pero necesitamos información adicional para poder procesarla:</p>\" +\n\n      \"<div style='background:#ffffff;border-left:4px solid #6d4aff;padding:14px 18px;margin:20px 0;border-radius:6px;'>\" +\n        \"<ul style='margin:0;padding-left:20px;'>\" +\n          (\n            $json.missing_information && $json.missing_information.length > 0\n              ? $json.missing_information\n                  .map(item => \"<li style='margin-bottom:6px;'>\" + item + \"</li>\")\n                  .join(\"\")\n              : \"<li>Detalles adicionales sobre la solicitud</li>\"\n          ) +\n        \"</ul>\" +\n      \"</div>\" +\n\n      \"<p>Por favor, responde este email con la información solicitada para que podamos continuar.</p>\" +\n\n      \"<p style='margin-bottom:0;'>Gracias,<br><strong>Equipo Horbath Technologies</strong></p>\" +\n    \"</div>\" +\n  \"</div>\"\n}}",
+        "options": {
+          "appendAttribution": true
+        }
+      },
+      "id": "b5218db6-5500-4d1f-8d44-f432a8b12cc6",
+      "name": "Solicitar Información Faltante",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1984,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_GOOGLE_SHEET_ID",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1609897864,
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "request_id": "={{ $('Marcar Requiere Información').item.json.request_id }}",
+            "received_at": "={{ $('Marcar Requiere Información').item.json.received_at }}",
+            "requester_name": "={{ $('Marcar Requiere Información').item.json.requester_name }}",
+            "requester_email": "={{ $('Marcar Requiere Información').item.json.requester_email }}",
+            "subject": "={{ $('Marcar Requiere Información').item.json.subject }}",
+            "body": "={{ $('Marcar Requiere Información').item.json.body }}",
+            "source": "={{ $('Marcar Requiere Información').item.json.source }}",
+            "status": "={{ $('Marcar Requiere Información').item.json.status }}",
+            "category": "={{ $('Marcar Requiere Información').item.json.category }}",
+            "priority": "={{ $('Marcar Requiere Información').item.json.priority }}",
+            "client_or_project": "={{ $('Marcar Requiere Información').item.json.client_or_project }}",
+            "target_person": "={{ $('Marcar Requiere Información').item.json.target_person }}",
+            "summary": "={{ $('Marcar Requiere Información').item.json.summary }}",
+            "requested_action": "={{ $('Marcar Requiere Información').item.json.requested_action }}",
+            "due_date": "={{ $('Marcar Requiere Información').item.json.due_date }}",
+            "missing_information": "={{ $('Marcar Requiere Información').item.json.missing_information }}",
+            "suggested_owner": "={{ $('Marcar Requiere Información').item.json.suggested_owner }}",
+            "draft_reply": "={{ $('Marcar Requiere Información').item.json.draft_reply }}",
+            "requires_human_approval": "={{ $('Marcar Requiere Información').item.json.requires_human_approval }}",
+            "confidence": "={{ $('Marcar Requiere Información').item.json.confidence }}",
+            "validation_passed": "={{ $('Marcar Requiere Información').item.json.validation_passed }}",
+            "validation_reason": "={{ $('Marcar Requiere Información').item.json.validation_reason }}",
+            "last_updated_at": "={{ $('Marcar Requiere Información').item.json.last_updated_at }}",
+            "original_message_link": "={{ $('Marcar Requiere Información').item.json.original_message_link }}"
+          },
+          "matchingColumns": [
+            "request_id"
+          ],
+          "schema": [
+            {
+              "id": "request_id",
+              "displayName": "request_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "received_at",
+              "displayName": "received_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requester_name",
+              "displayName": "requester_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requester_email",
+              "displayName": "requester_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "body",
+              "displayName": "body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "priority",
+              "displayName": "priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "client_or_project",
+              "displayName": "client_or_project",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_person",
+              "displayName": "target_person",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requested_action",
+              "displayName": "requested_action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "due_date",
+              "displayName": "due_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "missing_information",
+              "displayName": "missing_information",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "suggested_owner",
+              "displayName": "suggested_owner",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "draft_reply",
+              "displayName": "draft_reply",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "requires_human_approval",
+              "displayName": "requires_human_approval",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "confidence",
+              "displayName": "confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "validation_passed",
+              "displayName": "validation_passed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "validation_reason",
+              "displayName": "validation_reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "original_message_link",
+              "displayName": "original_message_link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_updated_at",
+              "displayName": "last_updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "17e129a4-7c27-4328-b649-3a0eefb8adc6",
+      "name": "Registrar Solicitud Incompleta",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2208,
+        1600
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AJG4SGU5C",
+          "mode": "list"
+        },
+        "messageType": "block",
+        "blocksUi": "=[\n  {\n    \"type\": \"header\",\n    \"text\": {\n      \"type\": \"plain_text\",\n      \"text\": \"🆕 Nueva Solicitud - {{ $json.category || 'Sin categoría' }}\",\n      \"emoji\": true\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"fields\": [\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*ID:*\\n{{ $json.request_id }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Prioridad:*\\n{{ $json.priority }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Solicitante:*\\n{{ $json.requester_name }}\\n<mailto:{{ $json.requester_email }}|{{ $json.requester_email }}>\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Proyecto/Cliente:*\\n{{ $json.client_or_project || 'No informado' }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Fecha objetivo:*\\n{{ $json.due_date || 'No informada' }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Requiere aprobación:*\\n{{ $json.requires_human_approval ? 'Sí ⚠️' : 'No' }}\"\n      }\n    ]\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Resumen:*\\n{{ $json.summary }}\"\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Acción solicitada:*\\n{{ $json.requested_action || 'No especificada' }}\"\n    }\n  },\n  {\n    \"type\": \"divider\"\n  },\n  {\n    \"type\": \"actions\",\n    \"elements\": [\n      {\n        \"type\": \"button\",\n        \"text\": {\n          \"type\": \"plain_text\",\n          \"text\": \"📋 Ver email original\",\n          \"emoji\": true\n        },\n        \"url\": \"{{ $json.original_message_link }}\",\n        \"action_id\": \"view_original_email\"\n      }\n    ]\n  }\n]",
+        "text": "={{\n  \"🆕 Nueva Solicitud - \" +\n  ($json.category || \"Sin categoría\") +\n  \" | \" +\n  ($json.priority || \"Sin prioridad\") +\n  \"\\nID: \" +\n  $json.request_id +\n  \"\\nSolicitante: \" +\n  $json.requester_name +\n  \" (\" +\n  $json.requester_email +\n  \")\" +\n  \"\\nProyecto/Cliente: \" +\n  ($json.client_or_project || \"No informado\") +\n  \"\\nResumen: \" +\n  $json.summary +\n  \"\\nFecha objetivo: \" +\n  ($json.due_date || \"No informada\") +\n  \"\\nRequiere aprobación: \" +\n  ($json.requires_human_approval ? \"Sí ⚠️\" : \"No\") +\n  \"\\nEmail original: \" +\n  ($json.original_message_link || \"No disponible\")\n}}",
+        "otherOptions": {}
+      },
+      "id": "72fdb0c7-25b1-4654-899e-0ca406d5618b",
+      "name": "Notificar Finanzas",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        2208,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AJG4SGU5C",
+          "mode": "list"
+        },
+        "messageType": "block",
+        "blocksUi": "=[\n  {\n    \"type\": \"header\",\n    \"text\": {\n      \"type\": \"plain_text\",\n      \"text\": \"🆕 Nueva Solicitud - {{ $json.category || 'Sin categoría' }}\",\n      \"emoji\": true\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"fields\": [\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*ID:*\\n{{ $json.request_id }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Prioridad:*\\n{{ $json.priority }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Solicitante:*\\n{{ $json.requester_name }}\\n<mailto:{{ $json.requester_email }}|{{ $json.requester_email }}>\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Proyecto/Cliente:*\\n{{ $json.client_or_project || 'No informado' }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Fecha objetivo:*\\n{{ $json.due_date || 'No informada' }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Requiere aprobación:*\\n{{ $json.requires_human_approval ? 'Sí ⚠️' : 'No' }}\"\n      }\n    ]\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Resumen:*\\n{{ $json.summary }}\"\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Acción solicitada:*\\n{{ $json.requested_action || 'No especificada' }}\"\n    }\n  },\n  {\n    \"type\": \"divider\"\n  },\n  {\n    \"type\": \"actions\",\n    \"elements\": [\n      {\n        \"type\": \"button\",\n        \"text\": {\n          \"type\": \"plain_text\",\n          \"text\": \"📋 Ver email original\",\n          \"emoji\": true\n        },\n        \"url\": \"{{ $json.original_message_link }}\",\n        \"action_id\": \"view_original_email\"\n      }\n    ]\n  }\n]",
+        "text": "={{\n  \"🆕 Nueva Solicitud - \" +\n  ($json.category || \"Sin categoría\") +\n  \" | \" +\n  ($json.priority || \"Sin prioridad\") +\n  \"\\nID: \" +\n  $json.request_id +\n  \"\\nSolicitante: \" +\n  $json.requester_name +\n  \" (\" +\n  $json.requester_email +\n  \")\" +\n  \"\\nProyecto/Cliente: \" +\n  ($json.client_or_project || \"No informado\") +\n  \"\\nResumen: \" +\n  $json.summary +\n  \"\\nFecha objetivo: \" +\n  ($json.due_date || \"No informada\") +\n  \"\\nRequiere aprobación: \" +\n  ($json.requires_human_approval ? \"Sí ⚠️\" : \"No\") +\n  \"\\nEmail original: \" +\n  ($json.original_message_link || \"No disponible\")\n}}",
+        "otherOptions": {}
+      },
+      "id": "dfaa572e-52c5-4ec9-97a5-b6d82583f924",
+      "name": "Notificar Compras1",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        2208,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AJG4SGU5C",
+          "mode": "list"
+        },
+        "messageType": "block",
+        "blocksUi": "=[\n  {\n    \"type\": \"header\",\n    \"text\": {\n      \"type\": \"plain_text\",\n      \"text\": \"🆕 Nueva Solicitud - {{ $json.category || 'Sin categoría' }}\",\n      \"emoji\": true\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"fields\": [\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*ID:*\\n{{ $json.request_id }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Prioridad:*\\n{{ $json.priority }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Solicitante:*\\n{{ $json.requester_name }}\\n<mailto:{{ $json.requester_email }}|{{ $json.requester_email }}>\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Proyecto/Cliente:*\\n{{ $json.client_or_project || 'No informado' }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Fecha objetivo:*\\n{{ $json.due_date || 'No informada' }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Requiere aprobación:*\\n{{ $json.requires_human_approval ? 'Sí ⚠️' : 'No' }}\"\n      }\n    ]\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Resumen:*\\n{{ $json.summary }}\"\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Acción solicitada:*\\n{{ $json.requested_action || 'No especificada' }}\"\n    }\n  },\n  {\n    \"type\": \"divider\"\n  },\n  {\n    \"type\": \"actions\",\n    \"elements\": [\n      {\n        \"type\": \"button\",\n        \"text\": {\n          \"type\": \"plain_text\",\n          \"text\": \"📋 Ver email original\",\n          \"emoji\": true\n        },\n        \"url\": \"{{ $json.original_message_link }}\",\n        \"action_id\": \"view_original_email\"\n      }\n    ]\n  }\n]",
+        "text": "={{\n  \"🆕 Nueva Solicitud - \" +\n  ($json.category || \"Sin categoría\") +\n  \" | \" +\n  ($json.priority || \"Sin prioridad\") +\n  \"\\nID: \" +\n  $json.request_id +\n  \"\\nSolicitante: \" +\n  $json.requester_name +\n  \" (\" +\n  $json.requester_email +\n  \")\" +\n  \"\\nProyecto/Cliente: \" +\n  ($json.client_or_project || \"No informado\") +\n  \"\\nResumen: \" +\n  $json.summary +\n  \"\\nFecha objetivo: \" +\n  ($json.due_date || \"No informada\") +\n  \"\\nRequiere aprobación: \" +\n  ($json.requires_human_approval ? \"Sí ⚠️\" : \"No\") +\n  \"\\nEmail original: \" +\n  ($json.original_message_link || \"No disponible\")\n}}",
+        "otherOptions": {}
+      },
+      "id": "7a997a55-30e2-4a13-ac6f-1ce1e9d310ff",
+      "name": "Notificar Accesos/TI",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        2208,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AJG4SGU5C",
+          "mode": "list"
+        },
+        "messageType": "block",
+        "blocksUi": "=[\n  {\n    \"type\": \"header\",\n    \"text\": {\n      \"type\": \"plain_text\",\n      \"text\": \"🆕 Nueva Solicitud - {{ $json.category || 'Sin categoría' }}\",\n      \"emoji\": true\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"fields\": [\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*ID:*\\n{{ $json.request_id }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Prioridad:*\\n{{ $json.priority }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Solicitante:*\\n{{ $json.requester_name }}\\n<mailto:{{ $json.requester_email }}|{{ $json.requester_email }}>\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Proyecto/Cliente:*\\n{{ $json.client_or_project || 'No informado' }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Fecha objetivo:*\\n{{ $json.due_date || 'No informada' }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Requiere aprobación:*\\n{{ $json.requires_human_approval ? 'Sí ⚠️' : 'No' }}\"\n      }\n    ]\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Resumen:*\\n{{ $json.summary }}\"\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Acción solicitada:*\\n{{ $json.requested_action || 'No especificada' }}\"\n    }\n  },\n  {\n    \"type\": \"divider\"\n  },\n  {\n    \"type\": \"actions\",\n    \"elements\": [\n      {\n        \"type\": \"button\",\n        \"text\": {\n          \"type\": \"plain_text\",\n          \"text\": \"📋 Ver email original\",\n          \"emoji\": true\n        },\n        \"url\": \"{{ $json.original_message_link }}\",\n        \"action_id\": \"view_original_email\"\n      }\n    ]\n  }\n]",
+        "text": "={{\n  \"🆕 Nueva Solicitud - \" +\n  ($json.category || \"Sin categoría\") +\n  \" | \" +\n  ($json.priority || \"Sin prioridad\") +\n  \"\\nID: \" +\n  $json.request_id +\n  \"\\nSolicitante: \" +\n  $json.requester_name +\n  \" (\" +\n  $json.requester_email +\n  \")\" +\n  \"\\nProyecto/Cliente: \" +\n  ($json.client_or_project || \"No informado\") +\n  \"\\nResumen: \" +\n  $json.summary +\n  \"\\nFecha objetivo: \" +\n  ($json.due_date || \"No informada\") +\n  \"\\nRequiere aprobación: \" +\n  ($json.requires_human_approval ? \"Sí ⚠️\" : \"No\") +\n  \"\\nEmail original: \" +\n  ($json.original_message_link || \"No disponible\")\n}}",
+        "otherOptions": {}
+      },
+      "id": "7f5e9600-6ab0-4243-9e19-b7bb315614e8",
+      "name": "Notificar Soporte",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        2208,
+        832
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AJG4SGU5C",
+          "mode": "list"
+        },
+        "messageType": "block",
+        "blocksUi": "=[\n  {\n    \"type\": \"header\",\n    \"text\": {\n      \"type\": \"plain_text\",\n      \"text\": \"🆕 Nueva Solicitud - {{ $json.category || 'Sin categoría' }}\",\n      \"emoji\": true\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"fields\": [\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*ID:*\\n{{ $json.request_id }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Prioridad:*\\n{{ $json.priority }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Solicitante:*\\n{{ $json.requester_name }}\\n<mailto:{{ $json.requester_email }}|{{ $json.requester_email }}>\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Proyecto/Cliente:*\\n{{ $json.client_or_project || 'No informado' }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Fecha objetivo:*\\n{{ $json.due_date || 'No informada' }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Requiere aprobación:*\\n{{ $json.requires_human_approval ? 'Sí ⚠️' : 'No' }}\"\n      }\n    ]\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Resumen:*\\n{{ $json.summary }}\"\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Acción solicitada:*\\n{{ $json.requested_action || 'No especificada' }}\"\n    }\n  },\n  {\n    \"type\": \"divider\"\n  },\n  {\n    \"type\": \"actions\",\n    \"elements\": [\n      {\n        \"type\": \"button\",\n        \"text\": {\n          \"type\": \"plain_text\",\n          \"text\": \"📋 Ver email original\",\n          \"emoji\": true\n        },\n        \"url\": \"{{ $json.original_message_link }}\",\n        \"action_id\": \"view_original_email\"\n      }\n    ]\n  }\n]",
+        "text": "={{\n  \"🆕 Nueva Solicitud - \" +\n  ($json.category || \"Sin categoría\") +\n  \" | \" +\n  ($json.priority || \"Sin prioridad\") +\n  \"\\nID: \" +\n  $json.request_id +\n  \"\\nSolicitante: \" +\n  $json.requester_name +\n  \" (\" +\n  $json.requester_email +\n  \")\" +\n  \"\\nProyecto/Cliente: \" +\n  ($json.client_or_project || \"No informado\") +\n  \"\\nResumen: \" +\n  $json.summary +\n  \"\\nFecha objetivo: \" +\n  ($json.due_date || \"No informada\") +\n  \"\\nRequiere aprobación: \" +\n  ($json.requires_human_approval ? \"Sí ⚠️\" : \"No\") +\n  \"\\nEmail original: \" +\n  ($json.original_message_link || \"No disponible\")\n}}",
+        "otherOptions": {}
+      },
+      "id": "583efe54-cac3-464c-a9e0-28639927790d",
+      "name": "Notificar Proyectos/PMO",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        2208,
+        1024
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AJG4SGU5C",
+          "mode": "list"
+        },
+        "messageType": "block",
+        "blocksUi": "=[\n  {\n    \"type\": \"header\",\n    \"text\": {\n      \"type\": \"plain_text\",\n      \"text\": \"🆕 Nueva Solicitud - {{ $json.category || 'Sin categoría' }}\",\n      \"emoji\": true\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"fields\": [\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*ID:*\\n{{ $json.request_id }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Prioridad:*\\n{{ $json.priority }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Solicitante:*\\n{{ $json.requester_name }}\\n<mailto:{{ $json.requester_email }}|{{ $json.requester_email }}>\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Proyecto/Cliente:*\\n{{ $json.client_or_project || 'No informado' }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Fecha objetivo:*\\n{{ $json.due_date || 'No informada' }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Requiere aprobación:*\\n{{ $json.requires_human_approval ? 'Sí ⚠️' : 'No' }}\"\n      }\n    ]\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Resumen:*\\n{{ $json.summary }}\"\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Acción solicitada:*\\n{{ $json.requested_action || 'No especificada' }}\"\n    }\n  },\n  {\n    \"type\": \"divider\"\n  },\n  {\n    \"type\": \"actions\",\n    \"elements\": [\n      {\n        \"type\": \"button\",\n        \"text\": {\n          \"type\": \"plain_text\",\n          \"text\": \"📋 Ver email original\",\n          \"emoji\": true\n        },\n        \"url\": \"{{ $json.original_message_link }}\",\n        \"action_id\": \"view_original_email\"\n      }\n    ]\n  }\n]",
+        "text": "={{\n  \"🆕 Nueva Solicitud - \" +\n  ($json.category || \"Sin categoría\") +\n  \" | \" +\n  ($json.priority || \"Sin prioridad\") +\n  \"\\nID: \" +\n  $json.request_id +\n  \"\\nSolicitante: \" +\n  $json.requester_name +\n  \" (\" +\n  $json.requester_email +\n  \")\" +\n  \"\\nProyecto/Cliente: \" +\n  ($json.client_or_project || \"No informado\") +\n  \"\\nResumen: \" +\n  $json.summary +\n  \"\\nFecha objetivo: \" +\n  ($json.due_date || \"No informada\") +\n  \"\\nRequiere aprobación: \" +\n  ($json.requires_human_approval ? \"Sí ⚠️\" : \"No\") +\n  \"\\nEmail original: \" +\n  ($json.original_message_link || \"No disponible\")\n}}",
+        "otherOptions": {}
+      },
+      "id": "16bd02fa-e274-4bc5-a270-e851ac4ce2cb",
+      "name": "Notificar Administracion",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        2208,
+        1216
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0AJG4SGU5C",
+          "mode": "list"
+        },
+        "messageType": "block",
+        "blocksUi": "=[\n  {\n    \"type\": \"header\",\n    \"text\": {\n      \"type\": \"plain_text\",\n      \"text\": \"🆕 Nueva Solicitud - {{ $json.category || 'Sin categoría' }}\",\n      \"emoji\": true\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"fields\": [\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*ID:*\\n{{ $json.request_id }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Prioridad:*\\n{{ $json.priority }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Solicitante:*\\n{{ $json.requester_name }}\\n<mailto:{{ $json.requester_email }}|{{ $json.requester_email }}>\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Proyecto/Cliente:*\\n{{ $json.client_or_project || 'No informado' }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Fecha objetivo:*\\n{{ $json.due_date || 'No informada' }}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Requiere aprobación:*\\n{{ $json.requires_human_approval ? 'Sí ⚠️' : 'No' }}\"\n      }\n    ]\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Resumen:*\\n{{ $json.summary }}\"\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"*Acción solicitada:*\\n{{ $json.requested_action || 'No especificada' }}\"\n    }\n  },\n  {\n    \"type\": \"divider\"\n  },\n  {\n    \"type\": \"actions\",\n    \"elements\": [\n      {\n        \"type\": \"button\",\n        \"text\": {\n          \"type\": \"plain_text\",\n          \"text\": \"📋 Ver email original\",\n          \"emoji\": true\n        },\n        \"url\": \"{{ $json.original_message_link }}\",\n        \"action_id\": \"view_original_email\"\n      }\n    ]\n  }\n]",
+        "text": "={{\n  \"🆕 Nueva Solicitud - \" +\n  ($json.category || \"Sin categoría\") +\n  \" | \" +\n  ($json.priority || \"Sin prioridad\") +\n  \"\\nID: \" +\n  $json.request_id +\n  \"\\nSolicitante: \" +\n  $json.requester_name +\n  \" (\" +\n  $json.requester_email +\n  \")\" +\n  \"\\nProyecto/Cliente: \" +\n  ($json.client_or_project || \"No informado\") +\n  \"\\nResumen: \" +\n  $json.summary +\n  \"\\nFecha objetivo: \" +\n  ($json.due_date || \"No informada\") +\n  \"\\nRequiere aprobación: \" +\n  ($json.requires_human_approval ? \"Sí ⚠️\" : \"No\") +\n  \"\\nEmail original: \" +\n  ($json.original_message_link || \"No disponible\")\n}}",
+        "otherOptions": {}
+      },
+      "id": "1b9778b6-48ff-4a80-9042-d9e59d153609",
+      "name": "Notificar Revisión Manual",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        2208,
+        1408
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        816,
+        1344
+      ],
+      "id": "028b763b-ed7b-41fd-bbb2-0322a1fb1cb4",
+      "name": "Flash Lite 3.1"
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3.6-27b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1024,
+        1552
+      ],
+      "id": "07a1ce40-949b-4fb6-b9dc-de4af9778f98",
+      "name": "Qwen 3.6"
+    }
+  ],
+  "connections": {
+    "Detectar Nuevos Emails": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Datos": {
+      "main": [
+        [
+          {
+            "node": "Analizar Solicitud con IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analizar Solicitud con IA": {
+      "main": [
+        [
+          {
+            "node": "Validar Confianza y Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI GPT-5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analizar Solicitud con IA",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Analizar Solicitud con IA",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Confianza y Datos": {
+      "main": [
+        [
+          {
+            "node": "Validación Pasó?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validación Pasó?": {
+      "main": [
+        [
+          {
+            "node": "Registrar Solicitud Válida",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Marcar Requiere Información",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Solicitud Válida": {
+      "main": [
+        [
+          {
+            "node": "Asignar por Categoría",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Asignar por Categoría": {
+      "main": [
+        [
+          {
+            "node": "Notificar People",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Finanzas",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Compras1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Accesos/TI",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Soporte",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Proyectos/PMO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Administracion",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Revisión Manual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar Requiere Información": {
+      "main": [
+        [
+          {
+            "node": "Solicitar Información Faltante",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Solicitar Información Faltante": {
+      "main": [
+        [
+          {
+            "node": "Registrar Solicitud Incompleta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flash Lite 3.1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analizar Solicitud con IA",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Qwen 3.6": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "db8d09bbe9f4d9927fc4c8a17afea05396ceeae3fa505bb8a1751699adf525b5"
+  }
+}
